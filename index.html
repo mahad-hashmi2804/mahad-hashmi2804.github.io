@@ -14,15 +14,16 @@
 
 <body class="p-3">
 
-    <div class="d-flex justify-content-center align-self-center card m-2 ms-5 mt-3 p-2" style="width: 90%;">
-        <form method="get" class="d-flex justify-content-center gap-3 m-2"
+    <div class="align-self-center container-flex card m-2 mt-3 p-2">
+        <form method="get" class="justify-content-center align-self-center gap-3 m-2 width-auto"
             onsubmit="event.preventDefault(); get_iframe(); return false;">
-            <input type="text" id="id" placeholder="IMDb ID (e.g. tt1553656)" required>
-            <input type="number" id="season" placeholder="Season Number (e.g. 1)">
-            <input type="number" id="episode" placeholder="Episode Number (e.g. 1)">
+            <input type="text" id="id" placeholder="IMDb ID (e.g. tt1553656)" class="width-auto my-2" style="max-width: 100%" required>
+            <input type="number" id="season" placeholder="Season Number (e.g. 1)" class="width-auto my-2" style="max-width: 100%">
+            <input type="number" id="episode" placeholder="Episode Number (e.g. 1)" class="width-auto my-2" style="max-width: 100%">
             <button type="submit" class="btn btn-primary">Submit</button>
         </form>
-        <p class="text-info align-self-center">If you want to watch a movie, leave the "Season Number" and "Episode Number" fields empty.
+        <p class="text-info align-self-center">If you want to watch a movie, leave the "Season Number" and "Episode
+            Number" fields empty.
         </p>
     </div>
 
@@ -34,7 +35,7 @@
                     Search By Title
                 </button>
             </h2>
-            <div id="search-accordion" class="accordion-collapse collapse show">
+            <div id="search-accordion" class="accordion-collapse collapse show" aria-expanded="true">
                 <div class="accordion-body">
                     <div>
                         <form method="get" onsubmit="event.preventDefault(); 
@@ -53,7 +54,23 @@
     </div>
 
     <div class="d-flex justify-content-center p-3" style="width: 100%;">
-        <iframe src="" width="1200px" height="600px" sandbox="allow-scripts allow-same-origin allow-modals allow-forms" allowfullscreen></iframe>
+        <iframe src="" width="1200px" height="600px" sandbox="allow-scripts allow-same-origin allow-modals allow-forms"
+            allowfullscreen></iframe>
+    </div>
+
+    <div class="card container-flex">
+        <table id="history" class="table">
+            <thead>
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Title</th>
+                    <th scope="col">Season</th>
+                    <th scope="col">Episode</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
     </div>
 
     <script type="text/javascript">
@@ -117,11 +134,11 @@
             let q = document.querySelector("#q_field").value;
             q = q.replaceAll(" ", "_");
             //q = encodeURIComponent(q.trim());
-            
-            console.log(q);
+
+            // console.log(q);
 
             const results_list = document.querySelector("#search-results");
-            console.log(results_list);
+            // console.log(results_list);
 
             // 2) Using jQuery (JSON-P)
             jQuery.ajax({
@@ -134,11 +151,11 @@
 
                 results_list.innerHTML = "No results matching your query!";
 
-                console.log(results);
+                //console.log(results);
 
                 for (let item in results.d) {
                     item = results.d[item];
-                    console.log(item.id);
+                    // console.log(item.id);
                     if (item.id.slice(0, 2) === 'tt') {
                         add_result(item);
                     }
@@ -154,7 +171,8 @@
             season = document.querySelector('#season').value;
             episode = document.querySelector('#episode').value;
 
-            title = document.querySelector('title');
+            title_tag = document.querySelector('title');
+            var title;
 
             if (season && episode) {
                 iframe.src = `https://multiembed.mov/?video_id=${id}&s=${season}&e=${episode}`;
@@ -162,9 +180,102 @@
             else {
                 iframe.src = `https://multiembed.mov/?video_id=${id}`;
             }
-            iframe.reload();
+
+            jQuery.ajax({
+                url: `https://sg.media-imdb.com/suggests/f/${id}.json`,
+                dataType: 'jsonp',
+                cache: true,
+                jsonp: false,
+                jsonpCallback: `imdb$${id}`
+            }).then(function (results) {
+                for (var i = 0; i < results.d.length; i++) {
+                    if (results.d[i].id.slice(0, 2) === 'tt') {
+                        item = results.d[i];
+                        break;
+                    }
+                }
+
+                title = item.l;
+
+                var history = localStorage.getItem('history');
+
+                if (history === null) {
+                    history = [];
+                }
+                else {
+                    history = JSON.parse(history);
+                }
+
+                current = {
+                    id: id,
+                    title: title,
+                    season: season,
+                    episode: episode
+                };
+
+                history.push(current);
+
+                localStorage.setItem('history', JSON.stringify(history));
+
+                update_history();
+
+                title_tag.innerHTML = `Streaming  - ${title}`;
+
+            });
+
+            iframe.scrollIntoView();
 
         }
+
+        function update_history() {
+            var history = localStorage.getItem('history');
+            if (history === null) {
+                history = [];
+            }
+            else {
+                history = JSON.parse(history);
+            }
+
+            var table = document.querySelector('tbody');
+            table.innerHTML = '';
+
+            for (var i = 0; i < history.length; i++) {
+                var item = history[history.length - i - 1];
+
+                // console.log(item);
+
+                var row = document.createElement('tr');
+
+                row.onclick = function () {
+                    document.querySelector('#id').value = item.id;
+                    document.querySelector('#season').value = item.season;
+                    document.querySelector('#episode').value = item.episode;
+                    get_iframe();
+                }
+
+                row.style.cursor = 'pointer';
+
+                var id = document.createElement('td');
+                id.innerHTML = item.id;
+
+                var title = document.createElement('td');
+                title.innerHTML = item.title;
+
+                var season = document.createElement('td');
+                season.innerHTML = item.season;
+
+                var episode = document.createElement('td');
+                episode.innerHTML = item.episode;
+
+                row.appendChild(id);
+                row.appendChild(title);
+                row.appendChild(season);
+                row.appendChild(episode);
+
+                table.appendChild(row);
+            }
+        }
+
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
