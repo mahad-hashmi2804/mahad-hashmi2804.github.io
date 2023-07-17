@@ -3,6 +3,9 @@
 
 <head>
     <meta charset="utf-8">
+    <meta http-equiv='cache-control' content='no-cache'>
+    <meta http-equiv='expires' content='0'>
+    <meta http-equiv='pragma' content='no-cache'>
     <title>Stream</title>
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,9 +20,12 @@
     <div class="align-self-center container-flex card m-2 mt-3 p-2">
         <form method="get" class="justify-content-center align-self-center gap-3 m-2 width-auto"
             onsubmit="event.preventDefault(); get_iframe(); return false;">
-            <input type="text" id="id" placeholder="IMDb ID (e.g. tt1553656)" class="width-auto my-2" style="max-width: 100%" required>
-            <input type="number" id="season" placeholder="Season Number (e.g. 1)" class="width-auto my-2" style="max-width: 100%">
-            <input type="number" id="episode" placeholder="Episode Number (e.g. 1)" class="width-auto my-2" style="max-width: 100%">
+            <input type="text" id="id" placeholder="IMDb ID (e.g. tt1553656)" class="width-auto my-2"
+                style="max-width: 100%" required>
+            <input type="number" id="season" placeholder="Season Number (e.g. 1)" class="width-auto my-2"
+                style="max-width: 100%">
+            <input type="number" id="episode" placeholder="Episode Number (e.g. 1)" class="width-auto my-2"
+                style="max-width: 100%">
             <button type="submit" class="btn btn-primary">Submit</button>
         </form>
         <p class="text-info align-self-center">If you want to watch a movie, leave the "Season Number" and "Episode
