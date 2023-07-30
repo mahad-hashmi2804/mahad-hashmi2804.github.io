@@ -13,9 +13,14 @@
         integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
 
 <body class="p-3">
+    <div class="justify-content-center align-self-center text-center">
+        <h1 class="fw-bold fst-italic">Wanna watch a movie or a TV show?</h1>
+        <h2 class="fst-italic">You've come to the right place!</h2>
+    </div>
 
     <div class="align-self-center container-flex card m-2 mt-3 p-2">
         <form method="get" class="justify-content-center align-self-center gap-3 m-2 width-auto"
@@ -65,7 +70,13 @@
     </div>
 
     <div class="card container-flex">
-        <table id="history" class="table">
+        <div class="d-flex justify-content-between m-3">
+            <h3>Watch History</h3>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clear_history();">
+                <i class="bi bi-trash3"></i> Clear History
+            </button>
+        </div>
+        <table id="watched" class="table">
             <thead>
                 <tr>
                     <th scope="col">ID</th>
@@ -80,6 +91,11 @@
     </div>
 
     <script type="text/javascript">
+
+        function clear_history() {
+            localStorage.clear();
+            document.querySelector("#watched tbody").innerHTML = "";
+        };
 
         function add_result(item) {
             const results = document.querySelector("#search-results");
@@ -203,13 +219,13 @@
 
                 title = item.l;
 
-                var history = localStorage.getItem('history');
+                var watched = localStorage.getItem('watched');
 
-                if (history === null) {
-                    history = [];
+                if (watched === null) {
+                    watched = [];
                 }
                 else {
-                    history = JSON.parse(history);
+                    watched = JSON.parse(watched);
                 }
 
                 current = {
@@ -219,45 +235,46 @@
                     episode: episode
                 };
 
-                history.push(current);
+                watched.push(current);
 
-                localStorage.setItem('history', JSON.stringify(history));
+                localStorage.setItem('watched', JSON.stringify(watched));
 
-                update_history();
+                update_watched();
 
                 title_tag.innerHTML = `Streaming  - ${title}`;
 
             });
 
+            history.pushState({}, null, `?id=${id}&s=${season}&e=${episode}`);
+
             iframe.scrollIntoView();
 
         }
 
-        function update_history() {
-            var history = localStorage.getItem('history');
-            if (history === null) {
-                history = [];
+        function update_watched() {
+            var watched = localStorage.getItem('watched');
+            if (watched === null) {
+                watched = [];
             }
             else {
-                history = JSON.parse(history);
+                watched = JSON.parse(watched);
             }
+
+            console.log(watched);
 
             var table = document.querySelector('tbody');
             table.innerHTML = '';
 
-            for (var i = 0; i < history.length; i++) {
-                var item = history[history.length - i - 1];
+            for (var i = 0; i < watched.length; i++) {
+                var item = watched[watched.length - i - 1];
 
                 // console.log(item);
 
                 var row = document.createElement('tr');
+                row.dataset.item = item;
 
-                row.onclick = function () {
-                    document.querySelector('#id').value = item.id;
-                    document.querySelector('#season').value = item.season;
-                    document.querySelector('#episode').value = item.episode;
-                    get_iframe();
-                }
+                // row.role = 'a';
+                row.setAttribute('data-href', `?id=${item.id}&s=${item.season}&e=${item.episode}`);
 
                 row.style.cursor = 'pointer';
 
@@ -280,9 +297,26 @@
 
                 table.appendChild(row);
             }
+
+            var rows = document.querySelectorAll('tr');
+
+            rows.forEach(row => {
+                row.addEventListener('click', function () {
+                    window.location.href = row.dataset.href;
+                });
+            });
         }
 
-        update_history();
+        const urlParams = new URLSearchParams(window.location.search);
+
+        if (urlParams.has('id')) {
+            document.querySelector('#id').value = urlParams.get('id');
+            document.querySelector('#season').value = urlParams.get('s');
+            document.querySelector('#episode').value = urlParams.get('e');
+            get_iframe();
+        }
+
+        update_watched();
 
     </script>
 
