@@ -11,6 +11,12 @@ It is a front-end only website, so there is no backend. The website is hosted on
 
 It uses the IMDb search API to search for the movies and shows by title and uses another external API to get the iframes for the videos.
 
+jQuery is also used a bit in the website.
+
+This also uses the `fetch` function to make API calls.
+
+Also, makes use of the history API to change the URL without reloading the page.
+
 ### How to use:
 1. Go to the website: https://mahad-hashmi2804.github.io/
 2. Search for a movie or TV show by title
