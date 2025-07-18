@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", ()=>{
     let clickedPoints = [];
+    let manualBubbles = [];
     let originalImg = null;
+    let preDetectionImg = null;
     const consoleLogEl = document.getElementById("consoleLog");
 
     function logToConsole(msg) {
@@ -8,7 +10,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
         consoleLogEl.scrollTop = consoleLogEl.scrollHeight;
     }
 
-    function loadImageToCanvas(imageSrc) {
+    function loadImageToCanvas(imageSrc, clear=true) {
         const canvas = document.getElementById('outputCanvas');
         const ctx = canvas.getContext('2d');
         const img = new Image();
@@ -35,7 +37,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
         };
 
         img.src = imageSrc;
-        clickedPoints = [];
+        if (clear)
+            reAlign(false);
+
     }
 
 // Handles file input event and loads image to canvas
@@ -73,6 +77,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
         if (clickedPoints.length < 4) {
             clickedPoints.push({x, y});
             logToConsole(`Point ${clickedPoints.length} selected at (${x}, ${y})`);
+        } else {
+            addBubble({x, y});
+            return
         }
 
         if (clickedPoints.length === 4) {
@@ -82,12 +89,24 @@ document.addEventListener("DOMContentLoaded", ()=>{
         }
     });
 
+
+    function addBubble({x, y}) {
+        manualBubbles.push({ x: x-12, y: y-12, intensity: 50 });
+        detectBubblesWithContours(cv.imread("outputCanvas"));
+    }
+
+
 // Empties clicked points and resets image to original file
-    document.getElementById('reAlignButton').addEventListener('click', () => {
+    document.getElementById('reAlignButton').addEventListener('click', reAlign);
+
+    function reAlign(load=true) {
         clickedPoints = [];
-        loadImageToCanvas(originalImg);
+        manualBubbles = [];
+        preDetectionImg = null;
+        if (load)
+            loadImageToCanvas(originalImg, false);
         logToConsole("Please select all four corner bubbles for alignment.");
-    });
+    }
 
 
     function applyPerspectiveTransform(image, corners) {
@@ -127,6 +146,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
         dstPoints.delete();
         transformationMatrix.delete();
 
+        clickedPoints = targetCorners;
+
         return transformedImage;
     }
 
@@ -148,8 +169,23 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
 
 
+    function drawBubble(image, {x, y, width, height}) {
+        const color = new cv.Scalar(255, 255, 0);
+        cv.circle(image, new cv.Point(x + width / 2, y + height / 2), 10, color, 2);
+        return image;
+    }
+
+
     function detectBubblesWithContours(transformedImage, threshold = 160) {
-        const bubblesDetected = [];
+        if (preDetectionImg) {
+            transformedImage = preDetectionImg;
+            console.log("Pre-exists");
+        } else {
+            preDetectionImg = transformedImage;
+            console.log("Doesn't Pre-exist");
+        }
+
+        let bubblesDetected = [];
         let misreads = 0;
 
         // Convert the image to grayscale
@@ -193,19 +229,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
                     const isFilled = intensity < threshold;
 
-                    // Mark the detected bubble on the image
-                    // const color = isFilled ? new cv.Scalar(0, 255, 0) : new cv.Scalar(255, 0, 0); // Green for filled, Red for unfilled
-                    const color = new cv.Scalar(0, 255, 0);
-                    cv.circle(transformedImage, new cv.Point(centerX, centerY), 10, color, 2);
-
                     // Record detection results
-                    bubblesDetected.push({
-                        position: {x: centerX, y: centerY},
-                        filled: isFilled,
-                        question: Math.floor(centerY / (transformedImage.rows / 25)) + 1, // Example mapping
-                        answer: Math.floor(centerX / (transformedImage.cols / 5)) + 1,    // Example mapping
-                        intensity: intensity
-                    });
+                    bubblesDetected.push(rect);
                 }
             }
         }
@@ -216,27 +241,41 @@ document.addEventListener("DOMContentLoaded", ()=>{
         contours.delete();
         hierarchy.delete();
 
-        cv.imshow("outputCanvas", transformedImage);
 
-        // console.log(bubblesDetected);
+        bubblesDetected = bubblesDetected.concat(manualBubbles);
+
 
         // Separate bubbles into column 1 and 2
         let col_1 = [];
         let col_2 = [];
 
         bubblesDetected.forEach(bubble => {
-            if (250 < bubble.position.x && bubble.position.x < 400) {
+            if (bubble.width === undefined) {
+                bubble.width = 25;
+                bubble.height = 25;
+            }
+
+            // Analyze the intensity within the bubble to check if it’s filled
+            const bubbleROI = transformedImage.roi(new cv.Rect(bubble.x, bubble.y, bubble.width, bubble.height));
+            if (bubble.intensity === undefined)
+                bubble.intensity = cv.mean(bubbleROI)[0];
+            bubbleROI.delete();
+            drawBubble(transformedImage, bubble);
+
+            if (250 < bubble.x && bubble.x < 400) {
                 col_1.push(bubble)
-            } else if (650 < bubble.position.x && bubble.position.x < 790) {
+            } else if (650 < bubble.x && bubble.x < 790) {
                 col_2.push(bubble)
             } else {
                 console.log(bubble)
             }
         });
 
+        cv.imshow("outputCanvas", transformedImage);
+
         // Sort both columns by their y-coordinates so that it's more or less sorted by question number
-        col_1 = col_1.sort((a, b) => a.position.y - b.position.y);
-        col_2 = col_2.sort((a, b) => a.position.y - b.position.y);
+        col_1 = col_1.sort((a, b) => a.y - b.y);
+        col_2 = col_2.sort((a, b) => a.y - b.y);
 
         // Group bubbles of the same answers together
         let bubbles_grouped = [];
@@ -246,12 +285,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
                 let i = bubbles_grouped.length - 1;
                 let last_q = bubbles_grouped[i];
 
-                if (Math.abs(last_q.y - bubble.position.y) < 20) {
+                if (Math.abs(last_q.y - bubble.y) < 20) {
                     bubbles_grouped[i].bubbles.push(bubble);
                     return
                 }
             }
-            bubbles_grouped.push({y: bubble.position.y, bubbles: [bubble,]});
+            bubbles_grouped.push({y: bubble.y, bubbles: [bubble,]});
         }
 
         col_1.forEach(groupBubbles);
@@ -264,8 +303,10 @@ document.addEventListener("DOMContentLoaded", ()=>{
             });
             bubbles_grouped[i].bubbles = bubbles;
 
-            let col_start = (bubbles[0].position.x > 650) ? 660 : 260;
-            bubbles_grouped[i].answer = Math.ceil((bubbles[0].position.x - col_start) / 25)
+            bubbles[0].x += 12;
+
+            let col_start = (bubbles[0].x > 650) ? 660 : 260;
+            bubbles_grouped[i].answer = Math.ceil((bubbles[0].x - col_start) / 25)
         })
 
         // Find selected answer for each

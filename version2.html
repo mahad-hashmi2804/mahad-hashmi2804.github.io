@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Bubble Detection Prototype</title>
+
+    <script async src="opencv.js" type="text/javascript"></script>
+</head>
+<body>
+<h1>Bubble Detection Prototype</h1>
+<input accept="image/*" id="fileInput" type="file">
+<canvas id="canvasOutput"></canvas>
+<script>
+    let src, gray, binary;
+    document.addEventListener('DOMContentLoaded', () => {
+        // Wait for OpenCV.js to load
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+
+            let img = new Image();
+            img.onload = () => processImage(img);
+            img.src = URL.createObjectURL(file);
+        });
+
+        function processImage(img) {
+            // Set up canvas and display image
+            console.log("Processing image:");
+            let canvas = document.getElementById('canvasOutput');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // Convert image to OpenCV Mat
+            src = cv.imread(canvas);
+
+            // Step 1: Convert to grayscale
+            gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+            // Step 2: Threshold to highlight bubbles
+            binary = new cv.Mat();
+            cv.adaptiveThreshold(gray, binary, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY_INV, 17, 0);
+
+            // Step 3: Find contours (bubble outlines)
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(binary, contours, hierarchy, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE);
+
+            // Step 4: Filter contours for bubbles
+            let bubbles = [];
+            for (let i = 0; i < contours.size(); i++) {
+                let cnt = contours.get(i);
+                let area = cv.contourArea(cnt);
+                if (area > 500 && area < 1000) { // Adjust thresholds as needed
+                    let perimeter = cv.arcLength(cnt, true);
+                    let circularity = 4 * Math.PI * (area / (perimeter * perimeter));
+                    if (circularity > 0.7) { // Filter by circularity
+                        bubbles.push(cv.boundingRect(cnt));
+                        cv.drawContours(src, contours, i, [255, 0, 0, 255], 2); // Draw detected bubbles
+                    }
+                }
+            }
+            // cv.drawContours(src, contours, -1, [255,0,255,0] , 3);
+
+
+            // Step 5: Sort detected bubbles into rows and columns
+            bubbles.sort((a, b) => a.y - b.y || a.x - b.x); // Sort first by row (y), then by column (x)
+            let rows = groupByRow(bubbles, 5); // Group into rows (25 bubbles per row)
+
+            // Draw the result
+            cv.imshow(canvas, src);
+
+            console.log("Detected bubbles:", bubbles);
+            console.log("Rows:", rows);
+
+            // Cleanup
+            src.delete();
+            gray.delete();
+            binary.delete();
+            contours.delete();
+            hierarchy.delete();
+        }
+
+        function groupByRow(bubbles, bubblesPerRow) {
+            let rows = [];
+            for (let i = 0; i < bubbles.length; i += bubblesPerRow) {
+                rows.push(bubbles.slice(i, i + bubblesPerRow));
+            }
+            return rows;
+        }
+    })
+</script>
+</body>
+</html>

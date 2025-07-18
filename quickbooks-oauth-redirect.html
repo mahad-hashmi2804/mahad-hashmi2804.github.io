@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickBooks Redirect</title>
+    <script>
+        // This script runs when QuickBooks redirects the user back to GitHub Pages
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const state = params.get('state'); // IMPORTANT: Always handle the state parameter
+
+            if (code) {
+                // Construct your localhost redirect URL
+                // Ensure your local application is listening on this port and path
+                const localhostRedirectUri = `http://localhost:3000/oauth2/callback`; // Adjust port and path as needed
+
+                // Redirect to your localhost, passing the code and state
+                // This is the "further redirect" you mentioned
+                window.location.href = `${localhostRedirectUri}?code=${code}&state=${state}`;
+            } else {
+                // Handle errors or missing code
+                console.error("Authorization code not found in URL.");
+                document.body.innerHTML = "Authentication failed. Please try again.";
+            }
+        };
+    </script>
+</head>
+<body>
+    <p>Redirecting to your application...</p>
+    <noscript>
+        <p>Please enable JavaScript to complete the authentication process.</p>
+    </noscript>
+</body>
+</html>
