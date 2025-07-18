@@ -9,16 +9,17 @@
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
+            const realmId = params.get('realmId');
             const state = params.get('state'); // IMPORTANT: Always handle the state parameter
 
             if (code) {
                 // Construct your localhost redirect URL
                 // Ensure your local application is listening on this port and path
-                const localhostRedirectUri = `http://localhost:3000/`; // Adjust port and path as needed
+                const localhostRedirectUri = `http://localhost:3000/callback`; // Adjust port and path as needed
 
                 // Redirect to your localhost, passing the code and state
                 // This is the "further redirect" you mentioned
-                window.location.href = `${localhostRedirectUri}?code=${code}&state=${state}`;
+                window.location.href = `${localhostRedirectUri}?code=${code}&realmId=${realmId}&state=${state}`;
             } else {
                 // Handle errors or missing code
                 console.error("Authorization code not found in URL.");
